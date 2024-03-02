@@ -1,6 +1,10 @@
 // const express = require('express')
 import express from 'express';
 import bodyParser from 'body-parser';
+import dotenv from 'dotenv'
+
+dotenv.config()
+
 const app = express()
 const port = 3000
 
@@ -14,6 +18,13 @@ let students = [
     name: 'test2'
   },
 ]
+
+const connection = await mysql.createPool({
+  host: 'sql6.freemysqlhosting.net',
+  user: 'sql6687938',
+  password: 'gkkigEXGwS',
+  database: 'sql6687938',
+});
 
 // Sample Middleware
 app.use((req, res, next) => {
@@ -39,39 +50,65 @@ app.get('/student/:id', (req, res) => {
   return res.json({ error: 'Not Found' })
 })
 
-app.get('/student/', (req, res) => {
-  return res.json(students)
+app.get('/student/', async (req, res) => {
+  // return res.json(students)
+  try {
+    const [results, fields] = await connection.query(
+      'SELECT * FROM `students`'
+    );
+    return res.send(results)
+  } catch (err) {
+    console.log(err);
+  }
 })
 
-app.post('/student', (req, res) => {
+app.post('/student', async (req, res) => {
   const student = req.body;
-  console.log(req.body)
   const isPresentAlready = students.some(s => s.name === student.name)
-  if (isPresentAlready) {
-    return res.json({ error: "User Already Found" })
+  try {
+    const [results] = await connection.query(
+      'SELECT * FROM `students` WHERE `name` = ?',
+      [student.name]
+    );
+    isPresentAlready = results.listen !== 0;
+    if (isPresentAlready) {
+      return res.json({ error: "User Already Found" })
+    }
+    const [results2] = await connection.query(
+      'INSERT INTO plans (`id`, `name`) VALUES (?,?,?)',
+      [results.length + 1, student.name]
+    );
+
+    return res.json({ message: "User Added Successfully" })
+  } catch (err) {
+    console.log(err);
   }
-  students = [...students, student]
-  return res.json({ message: "User Added Successfully" })
 })
 
-app.delete('/student/:id', (req, res) => {
-  const id = Number(req.params.id)
-  students = students.filter(student => student.id !== id)
-  res.status(204).end()
+app.delete('/student/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const [results] = await connection.query(
+      'DELETE FROM `students` WHERE `id` = ?',
+      [id]
+    );
+    res.status(204).end()
+  } catch (err) {
+    console.log(err);
+  }
 })
 
-app.put('/student/:id', (req, res) => {
-  const id = Number(req.params.id)
-  const isPresentAlready = students.some(s => s.id === id)
-  if (!isPresentAlready) {
-    return res.json({ error: "User Not Found" })
+app.put('/student/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const [results] = await connection.query(
+      'UPDATE `students` SET name = ? WHERE `id` = ?',
+      [req.body.name, id]
+    );
+    return res.json({ message: "User Edited Successfully" })
+  } catch (err) {
+    console.log(err);
   }
-  let student = students.find(s => s.id === id);
-  let tempStu = { ...student, name: req.body.name }
-  let temp = students.filter(s => s.id !== id)
-  students = [...temp, tempStu]
-  console.log(students)
-  return res.json({ message: "User Edited Successfully" })
 })
 
 app.listen(port, () => {
