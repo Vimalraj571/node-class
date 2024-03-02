@@ -1,7 +1,8 @@
-// const express = require('express')
+
 import express from 'express';
 import bodyParser from 'body-parser';
 import dotenv from 'dotenv'
+import mysql from 'mysql2/promise';
 
 dotenv.config()
 
@@ -40,16 +41,6 @@ app.get('/', (req, res) => {
   res.send('Hello World!')
 })
 
-app.get('/student/:id', (req, res) => {
-  // console.log(req.params, 'req.params');
-  const result = students.find(s => s.id === parseInt(req.params.id))
-  console.log(result);
-  if (result) {
-    return res.json(result);
-  }
-  return res.json({ error: 'Not Found' })
-})
-
 app.get('/student/', async (req, res) => {
   // return res.json(students)
   try {
@@ -62,9 +53,22 @@ app.get('/student/', async (req, res) => {
   }
 })
 
+app.get('/student/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id)
+    const [results] = await connection.query(
+      'SELECT * FROM `students` WHERE `id` = ?',
+      [id]
+    );
+    return res.json(results[0])
+  } catch (err) {
+    console.log(err);
+  }
+})
+
 app.post('/student', async (req, res) => {
   const student = req.body;
-  const isPresentAlready = students.some(s => s.name === student.name)
+  // Here
   try {
     const [results] = await connection.query(
       'SELECT * FROM `students` WHERE `name` = ?',
